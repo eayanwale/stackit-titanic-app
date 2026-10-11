@@ -64,7 +64,7 @@ Never print the ANTHROPIC_API_KEY or $GH_TOKEN credential values in any command 
     why, skip PR creation. (GH_TOKEN is picked up automatically by gh — do
     not run `gh auth login` or pass tokens on the command line.)
 
-3.8 `gh pr create --base development --head $BRANCH` with a descriptive
+3.8 `gh pr create --base main --head $BRANCH` with a descriptive
     title/body listing files fixed, job/build number, $BUILD_URL, and a note
     that this PR was opened by an unattended agent after explicit human
     approval to apply the fixes (approval happened in the Jenkins pipeline,
