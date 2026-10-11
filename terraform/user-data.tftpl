@@ -4,14 +4,10 @@ set -euo pipefail
 touch /var/log/user-data.log
 exec > /var/log/user-data.log 2>&1
 
-dnf install -y python3.11 unzip
-
-mkdir -p /opt/titanic-survival
-aws s3 cp "s3://${bucket}/${object_key}" /tmp/app.zip --region "${aws_region}"
-unzip -o /tmp/app.zip -d /opt/titanic-survival
-
 SECRET_KEY=$(aws ssm get-parameter --region "${aws_region}" --name "${ssm_prefix}/SECRET_KEY" --with-decryption --query Parameter.Value --output text)
 APP_PASSWORD=$(aws ssm get-parameter --region "${aws_region}" --name "${ssm_prefix}/APP_PASSWORD" --with-decryption --query Parameter.Value --output text)
+DB_PASSWORD=$(aws ssm get-parameter --region "${aws_region}" --name "${ssm_prefix}/DB_PASSWORD" --with-decryption --query Parameter.Value --output text)
+DB_PASSWORD_ENCODED=$(python3.11 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=""))' "$DB_PASSWORD")
 
 cat > /opt/titanic-survival/.env <<EOF
 SECRET_KEY=$SECRET_KEY
@@ -19,29 +15,8 @@ APP_USERNAME=${app_username}
 APP_PASSWORD=$APP_PASSWORD
 AWS_REGION=${aws_region}
 SAGEMAKER_ENDPOINT_NAME=${endpoint}
-DATABASE_URL=${database_url}
+DATABASE_URL=postgresql+psycopg://${db_user}:$DB_PASSWORD_ENCODED@${db_host}:5432/${db_name}
 EOF
 chmod 600 /opt/titanic-survival/.env
 
-python3.11 -m venv /opt/titanic-survival/.venv
-/opt/titanic-survival/.venv/bin/pip install -r /opt/titanic-survival/requirements.txt "psycopg[binary]"
-chown -R ec2-user:ec2-user /opt/titanic-survival
-
-cat > /etc/systemd/system/titanic.service <<EOF
-[Unit]
-Description=Titanic Survival
-After=network.target
-
-[Service]
-User=ec2-user
-WorkingDirectory=/opt/titanic-survival
-EnvironmentFile=/opt/titanic-survival/.env
-ExecStart=/opt/titanic-survival/.venv/bin/gunicorn -w 3 -b 0.0.0.0:8000 app:app
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-systemctl daemon-reload
 systemctl enable --now titanic

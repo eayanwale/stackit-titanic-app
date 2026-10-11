@@ -38,6 +38,16 @@ variable "PRIVATE_CIDR_B" {
   default = "172.31.201.0/24"
 }
 
+variable "AMI_NAME_PREFIX" {
+  type    = string
+  default = "stack-titanic-app"
+}
+
+variable "AMI_OWNER_ACCOUNT_ID" {
+  type    = string
+  default = "604175034089"
+}
+
 variable "INSTANCE_TYPE" {
   type    = string
   default = "t3.small"

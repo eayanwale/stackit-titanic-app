@@ -15,7 +15,7 @@ resource "aws_db_instance" "db" {
   allocated_storage      = 20
   db_name                = "titanic"
   username               = "titanic"
-  password               = random_password.db_password.result
+  password               = data.aws_ssm_parameter.db_password.value
   db_subnet_group_name   = aws_db_subnet_group.db.name
   vpc_security_group_ids = [aws_security_group.db.id]
   publicly_accessible    = false
