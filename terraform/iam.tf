@@ -23,13 +23,6 @@ data "aws_iam_policy_document" "ssm" {
   }
 }
 
-data "aws_iam_policy_document" "artifact" {
-  statement {
-    actions   = ["s3:GetObject"]
-    resources = ["${aws_s3_bucket.artifacts.arn}/${aws_s3_object.app.key}"]
-  }
-}
-
 resource "aws_iam_role" "app" {
   name               = "${var.APP_NAME}-role"
   assume_role_policy = data.aws_iam_policy_document.assume.json
@@ -46,12 +39,6 @@ resource "aws_iam_role_policy" "ssm" {
   name   = "ReadAppSecrets"
   role   = aws_iam_role.app.id
   policy = data.aws_iam_policy_document.ssm.json
-}
-
-resource "aws_iam_role_policy" "artifact" {
-  name   = "ReadAppArtifact"
-  role   = aws_iam_role.app.id
-  policy = data.aws_iam_policy_document.artifact.json
 }
 
 resource "aws_iam_role_policy_attachment" "ssm" {
