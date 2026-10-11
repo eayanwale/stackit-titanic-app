@@ -1,6 +1,6 @@
 resource "aws_launch_template" "app" {
   name_prefix            = "${var.APP_NAME}-lt"
-  image_id               = data.aws_ami.al2023.id
+  image_id               = data.aws_ami.golden.id
   instance_type          = var.INSTANCE_TYPE
   update_default_version = true
 
@@ -19,12 +19,12 @@ resource "aws_launch_template" "app" {
 
   user_data = base64encode(templatefile("${path.module}/user-data.tftpl", {
     aws_region   = var.AWS_REGION
-    bucket       = aws_s3_bucket.artifacts.id
-    object_key   = aws_s3_object.app.key
     ssm_prefix   = var.SSM_PREFIX
     app_username = var.APP_USERNAME
     endpoint     = var.SAGEMAKER_ENDPOINT_NAME
-    database_url = "postgresql+psycopg://${aws_db_instance.db.username}:${random_password.db_password.result}@${aws_db_instance.db.address}:5432/${aws_db_instance.db.db_name}"
+    db_host      = aws_db_instance.db.address
+    db_user      = aws_db_instance.db.username
+    db_name      = aws_db_instance.db.db_name
   }))
 
   tag_specifications {
