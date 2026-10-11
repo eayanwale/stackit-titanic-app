@@ -8,7 +8,7 @@ pipeline {
     agent any
 
     parameters {
-        choice(name: 'ACTION', choices: ['apply', 'destroy'], description: 'Terraform action to run')
+        choice(name: 'ACTION', choices: ['plan', 'apply', 'destroy'], description: 'Terraform action to run. plan is the default so push-triggered builds never change infrastructure')
     }
 
     environment {
@@ -22,7 +22,9 @@ pipeline {
         stage('Determine action') {
             steps {
                 script {
-                    if (params.ACTION == 'apply') {
+                    if (params.ACTION == 'plan') {
+                        action = "PLANNING"
+                    } else if (params.ACTION == 'apply') {
                         action = "DEPLOYING"
                     } else if (params.ACTION == 'destroy') {
                         action = "TEARING DOWN"
