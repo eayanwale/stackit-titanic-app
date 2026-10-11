@@ -8,7 +8,7 @@ import os
 
 class Config:
     # Flask
-    SECRET_KEY = os.environ.get("SECRET_KEY", "change-me-in-production")
+    SECRET_KEY = os.environ["SECRET_KEY"]
 
     # Tier 3 — user store (SQLite for demo; point at RDS in production)
     SQLALCHEMY_DATABASE_URI = os.environ.get(
@@ -18,7 +18,7 @@ class Config:
 
     # Seed sign-in account (created on first run if the table is empty)
     APP_USERNAME = os.environ.get("APP_USERNAME", "admin")
-    APP_PASSWORD = os.environ.get("APP_PASSWORD", "titanic")
+    APP_PASSWORD = os.environ["APP_PASSWORD"]
 
     # Tier 3 — the deployed model
     AWS_REGION = os.environ.get("AWS_REGION", "us-east-1")
