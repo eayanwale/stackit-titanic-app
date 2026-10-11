@@ -1,12 +1,12 @@
 data "aws_caller_identity" "current" {}
 
-data "aws_ami" "al2023" {
+data "aws_ami" "golden" {
   most_recent = true
-  owners      = ["amazon"]
+  owners      = [var.AMI_OWNER_ACCOUNT_ID]
 
   filter {
     name   = "name"
-    values = ["al2023-ami-2023.*-x86_64"]
+    values = ["${var.AMI_NAME_PREFIX}-*"]
   }
 
   filter {
@@ -15,14 +15,7 @@ data "aws_ami" "al2023" {
   }
 }
 
-data "archive_file" "app" {
-  type        = "zip"
-  source_dir  = "${path.module}/../titanic-survival"
-  output_path = "${path.module}/app.zip"
-  excludes    = [".env", ".venv", "__pycache__", "instance", "titanic.db"]
-}
-
-resource "random_password" "db_password" {
-  length  = 24
-  special = false
+data "aws_ssm_parameter" "db_password" {
+  name            = "${var.SSM_PREFIX}/DB_PASSWORD"
+  with_decryption = true
 }
