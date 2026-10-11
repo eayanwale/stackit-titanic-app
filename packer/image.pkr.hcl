@@ -23,6 +23,11 @@ variable "aws_region" {
   default = "us-east-1"
 }
 
+variable "aws_accounts" {
+  type    = list(string)
+  default = ["524558748095"]
+}
+
 data "amazon-ami" "al2023" {
   region = "${var.aws_region}"
   filters = {
@@ -37,14 +42,16 @@ data "amazon-ami" "al2023" {
 locals { timestamp = regex_replace(timestamp(), "[- TZ:]", "") }
 
 source "amazon-ebs" "amazon_ebs" {
-  ami_name      = "${var.ami_name}-${local.timestamp}"
-  encrypt_boot  = false
-  instance_type = "${var.aws_instance_type}"
-  region        = "${var.aws_region}"
-  source_ami    = "${data.amazon-ami.al2023.id}"
-  ssh_pty       = true
-  ssh_timeout   = "5m"
-  ssh_username  = "ec2-user"
+  ami_name       = "${var.ami_name}-${local.timestamp}"
+  ami_users      = "${var.aws_accounts}"
+  snapshot_users = "${var.aws_accounts}"
+  encrypt_boot   = false
+  instance_type  = "${var.aws_instance_type}"
+  region         = "${var.aws_region}"
+  source_ami     = "${data.amazon-ami.al2023.id}"
+  ssh_pty        = true
+  ssh_timeout    = "5m"
+  ssh_username   = "ec2-user"
 
   launch_block_device_mappings {
     delete_on_termination = true
