@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Prediction · Titanic Survival{% endblock %}
+{% block layout %}
+<div class="wrap">
+  <div class="verdict" style="max-width:640px;margin:0 auto">
+    <div class="top {{ 'lived' if survived else 'died' }}">
+      <div class="tag">Model prediction</div>
+      <h1>
+        {{ name }} is
+        {% if survived %}<span class="em lived">likely to survive</span>{% else %}<span class="em died">unlikely to survive</span>{% endif %}
+      </h1>
+      {% if probability is not none %}
+      <div class="gauge">
+        <div class="num">{{ (probability * 100) | round(0) | int }}<span class="pct">%</span></div>
+        <div class="cap">estimated survival probability</div>
+        <div class="bar">
+          <div class="fill {{ 'lived' if survived else 'died' }}" style="width: {{ (probability * 100) | round(1) }}%"></div>
+        </div>
+      </div>
+      {% else %}
+      <p class="who">The model returned a verdict without a probability score.</p>
+      {% endif %}
+    </div>
+
+    <div class="recap">
+      <h3>What the model was given</h3>
+      <div class="chips">
+        <span class="chip"><span class="k">Class</span> <b>{{ pclass_label }}</b></span>
+        <span class="chip"><span class="k">Sex</span> <b>{{ features.sex | capitalize }}</b></span>
+        <span class="chip"><span class="k">Title</span> <b>{{ features.title }}</b></span>
+        <span class="chip"><span class="k">Age</span> <b>{{ features.age | int }}</b></span>
+        <span class="chip"><span class="k">Fare</span> <b>£{{ '%.2f' | format(features.fare) }}</b></span>
+        <span class="chip"><span class="k">Embarked</span> <b>{{ embarked_label }}</b></span>
+        <span class="chip"><span class="k">Family aboard</span> <b>{{ features.family_size - 1 }}</b></span>
+        <span class="chip"><span class="k">Cabin</span> <b>{{ 'Yes' if features.has_cabin else 'No' }}</b></span>
+      </div>
+      <div class="src">
+        <span class="dot {{ 'live' if source == 'sagemaker' else '' }}"></span>
+        {% if source == 'sagemaker' %}
+          Scored by the SageMaker endpoint
+        {% else %}
+          Local heuristic (no endpoint configured &mdash; set <code style="font-family:var(--mono)">SAGEMAKER_ENDPOINT_NAME</code>)
+        {% endif %}
+      </div>
+      <div class="btn-row">
+        <a href="{{ url_for('index') }}" class="btn btn-primary" style="width:auto">Score another passenger</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

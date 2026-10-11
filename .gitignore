@@ -1,0 +1,16 @@
+.terraform/
+terraform/app.zip
+tfplan
+*.tfstate
+*.tfstate.*
+*.tfvars
+
+.venv/
+__pycache__/
+*.pyc
+.env
+instance/
+*.db
+
+secrets_found.log
+syntax_issues_found.log

@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Titanic Survival{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+{% if current_user.is_authenticated %}
+  <nav class="nav">
+    <div class="brand">
+      <img src="{{ url_for('static', filename='img/logo.png') }}" alt="STACK IT Training">
+      <span class="app">Titanic Survival</span>
+    </div>
+    <div class="who">
+      <span class="u">{{ current_user.username }}</span>
+      <a href="{{ url_for('logout') }}">Sign out</a>
+    </div>
+  </nav>
+{% endif %}
+
+{% block layout %}{% endblock %}
+
+<footer class="foot">Powered by <b>STACK IT TRAINING</b> · Amazon SageMaker · Titanic data lake</footer>
+</body>
+</html>

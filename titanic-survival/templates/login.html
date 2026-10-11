@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Sign in · Titanic Survival{% endblock %}
+{% block layout %}
+<div class="center">
+  <div class="card login">
+    <div class="logo">
+      <img src="{{ url_for('static', filename='img/logo.png') }}" alt="STACK IT Training">
+    </div>
+    <h1>Titanic Survival</h1>
+    <p class="sub">Sign in to score a passenger.</p>
+    <div class="body">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+          <div class="flash {{ category }}">{{ message }}</div>
+        {% endfor %}
+      {% endwith %}
+      <form method="post" action="{{ url_for('login') }}">
+        <div class="field">
+          <label for="username">Username</label>
+          <input type="text" id="username" name="username" autocomplete="username" autofocus required>
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" autocomplete="current-password" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Sign in</button>
+      </form>
+      <p class="hint">Demo account: <code>admin</code> / <code>titanic</code></p>
+    </div>
+  </div>
+</div>
+{% endblock %}

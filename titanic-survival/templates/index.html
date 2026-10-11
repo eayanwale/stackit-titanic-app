@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Score a passenger · Titanic Survival{% endblock %}
+{% block layout %}
+<div class="wrap">
+  <div class="card" style="max-width:720px;margin:0 auto">
+    <div class="head">
+      <h1>Would this passenger have survived?</h1>
+      <p>Enter the details below and the model trained on the Titanic manifest returns a survival prediction.</p>
+    </div>
+    <div class="body">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+          <div class="flash {{ category }}">{{ message }}</div>
+        {% endfor %}
+      {% endwith %}
+      <form method="post" action="{{ url_for('predict_route') }}">
+        <div class="grid">
+          <div class="section-label">Who they were</div>
+
+          <div class="field full">
+            <label for="name">Passenger name <span class="q">(optional)</span></label>
+            <input type="text" id="name" name="name" placeholder="e.g. Margaret Brown">
+          </div>
+
+          <div class="field">
+            <label for="title">Title</label>
+            <select id="title" name="title">
+              {% for value, label in title_choices %}
+                <option value="{{ value }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="field">
+            <label for="sex">Sex</label>
+            <select id="sex" name="sex">
+              {% for value, label in sex_choices %}
+                <option value="{{ value }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="field">
+            <label for="age">Age</label>
+            <input type="number" id="age" name="age" min="0" max="100" step="1" value="30" required>
+          </div>
+
+          <div class="section-label">Ticket &amp; travel</div>
+
+          <div class="field">
+            <label for="pclass">Passenger class</label>
+            <select id="pclass" name="pclass">
+              {% for value, label in pclass_choices %}
+                <option value="{{ value }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="field">
+            <label for="embarked">Port of embarkation</label>
+            <select id="embarked" name="embarked">
+              {% for value, label in embarked_choices %}
+                <option value="{{ value }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="field">
+            <label for="fare">Fare paid <span class="q">(£)</span></label>
+            <input type="number" id="fare" name="fare" min="0" step="0.01" value="32.20" required>
+          </div>
+          <div class="field full">
+            <div class="toggle">
+              <input type="checkbox" id="has_cabin" name="has_cabin" value="1">
+              <label for="has_cabin" class="track" style="margin:0"></label>
+              <span class="lab">Had a recorded cabin</span>
+            </div>
+          </div>
+
+          <div class="section-label">Family aboard</div>
+
+          <div class="field">
+            <label for="sibsp">Siblings / spouses aboard</label>
+            <input type="number" id="sibsp" name="sibsp" min="0" max="10" step="1" value="0" required>
+          </div>
+          <div class="field">
+            <label for="parch">Parents / children aboard</label>
+            <input type="number" id="parch" name="parch" min="0" max="10" step="1" value="0" required>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="margin-top:8px">Predict survival</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
