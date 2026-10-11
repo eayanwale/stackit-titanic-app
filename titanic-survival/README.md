@@ -20,9 +20,11 @@ did, so the row sent to the model matches its training columns.
 ```bash
 python3 -m venv .venv && . .venv/bin/activate
 pip install -r requirements.txt
-MOCK_PREDICTIONS=1 SECRET_KEY=dev flask run
-# open http://localhost:5000  ·  sign in with  admin / titanic
+MOCK_PREDICTIONS=1 SECRET_KEY=dev APP_PASSWORD=dev flask run
+# open http://localhost:5000  ·  sign in with  admin / dev
 ```
+
+`SECRET_KEY` and `APP_PASSWORD` have no defaults and must always be set.
 
 In mock mode the app scores with a transparent heuristic, so you can click
 through the whole flow with zero AWS setup.
@@ -31,6 +33,7 @@ through the whole flow with zero AWS setup.
 
 ```bash
 export SECRET_KEY=$(python -c "import secrets;print(secrets.token_hex(32))")
+export APP_PASSWORD=<your-password>
 export AWS_REGION=us-east-1
 export SAGEMAKER_ENDPOINT_NAME=titanic-endpoint   # your InService endpoint
 flask run
@@ -41,8 +44,10 @@ endpoint (an EC2 instance role in production — see `DEPLOYMENT.md`).
 
 ## Deploy to AWS
 
-Step-by-step three-tier instructions (IAM role, EC2 + gunicorn, ALB, optional
-RDS) are in **`DEPLOYMENT.md`**.
+The automated path is Terraform driven by a Jenkins pipeline — see
+**`../docs/terraform-jenkins-deploy.md`**. Step-by-step manual three-tier
+instructions (IAM role, EC2 + gunicorn, ALB, optional RDS) are in
+**`DEPLOYMENT.md`**.
 
 ## Configuration
 

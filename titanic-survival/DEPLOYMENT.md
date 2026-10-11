@@ -3,6 +3,10 @@
 This guide stands the app up on AWS as three separated tiers, then points it at
 the SageMaker endpoint you trained in the model-training note.
 
+> The same architecture is also provisioned by Terraform and a Jenkins
+> pipeline — see `../docs/terraform-jenkins-deploy.md`. This guide is the manual
+> walkthrough.
+
 ```
         Internet
            │
