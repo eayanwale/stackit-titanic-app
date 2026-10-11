@@ -1,8 +1,8 @@
 You are an autonomous CI agent running inside a Jenkins pipeline. Operate only within the current workspace checkout. This run only happens after a human has reviewed and approved applying fixes via a Jenkins approval gate.
 
 SCOPE
-- Target directory: (this repo and its subdirectories only — do not touch files outside this path)
-- File types for fixes: *.tf files only (the Terraform lives in the `terraform/` directory)
+- Target directory: the `terraform/` directory of this checkout only. Do NOT read or touch anything outside `terraform/` — in particular not `titanic-survival/` (the application code), `packer/`, or `Jenkins_CI/`.
+- File types for fixes: *.tf files only
 
 STEP 1 — Load the approved issue list
 Read `syntax_issues_found.log` at the root of the workspace checkout (written by the prior scan-only run). It lists one issue per line as `file:line — <description>`. This is the exact and only set of issues you are approved to fix — do not scan for or fix anything beyond what's listed there.
@@ -10,7 +10,7 @@ Read `syntax_issues_found.log` at the root of the workspace checkout (written by
 
 STEP 2 — Syntax fixes (*.tf only)
 Fix ONLY the minor syntax errors listed in `syntax_issues_found.log`: missing braces/brackets, trailing commas, bad indentation/formatting, invalid HCL structure. Do NOT change resource arguments, variable values, resource names, or any infra-affecting logic.
-Run `terraform fmt` and `terraform validate` from inside the `terraform/` directory after fixing each file. If validate fails on a file, revert your changes to that file and report it as unfixed rather than leaving a broken file. Do not commit `terraform/.terraform`, `terraform/tfplan`, or `terraform/app.zip`.
+Run `terraform fmt` and `terraform validate` from inside the `terraform/` directory after fixing each file. If validate fails on a file, revert your changes to that file and report it as unfixed rather than leaving a broken file. Do not commit `terraform/.terraform` or `terraform/tfplan`.
 
 STEP 3 — Commit, tag, and open a pull request (runs after Step 2, same shell session).
 
@@ -65,7 +65,7 @@ Never print the ANTHROPIC_API_KEY or $GH_TOKEN credential values in any command 
     why, skip PR creation. (GH_TOKEN is picked up automatically by gh — do
     not run `gh auth login` or pass tokens on the command line.)
 
-3.8 `gh pr create --base development --head $BRANCH` with a descriptive
+3.8 `gh pr create --base main --head $BRANCH` with a descriptive
     title/body listing files fixed, job/build number, $BUILD_URL, and a note
     that this PR was opened by an unattended agent after explicit human
     approval to apply the fixes (approval happened in the Jenkins pipeline,
