@@ -1,0 +1,196 @@
+def runner = "ENOCH"
+def claudePrompt = ""
+def claudeFixPrompt = ""
+def applyFixes = false
+def amiId = ""
+
+pipeline {
+    agent any
+
+    environment {
+        VERSION = "1.0.${BUILD_NUMBER}"
+        SNS_SECURITY_TOPIC_ARN = 'arn:aws:sns:us-east-1:604175034089:Secrets_Found_Pipelines'
+    }
+
+    stages {
+
+        stage('Checkout and load prompt') {
+            steps {
+                script {
+                    sh 'rm -f secrets_found.log syntax_issues_found.log'
+
+                    def promptFile = 'Jenkins_CI/ai-source-audit-image-prompt.txt'
+                    def fixPromptFile = 'Jenkins_CI/ai-source-audit-image-fix-prompt.txt'
+
+                    if (fileExists(promptFile)) {
+                        claudePrompt = readFile(file: promptFile, encoding: 'UTF-8').trim()
+                        echo "Successfully loaded AI scan prompt file as string"
+                    } else {
+                        error "Required prompt file: '${promptFile}' was not found in the workspace"
+                    }
+
+                    if (fileExists(fixPromptFile)) {
+                        claudeFixPrompt = readFile(file: fixPromptFile, encoding: 'UTF-8').trim()
+                        echo "Successfully loaded AI fix prompt file as string"
+                    } else {
+                        error "Required prompt file: '${fixPromptFile}' was not found in the workspace"
+                    }
+                }
+            }
+        }
+
+        stage('AI Source Code Audit') {
+            steps {
+                slackSend (color: '#FFFF00', message: "runner: ${runner}, STARTING AI Code Audit: Job '${env.JOB_BASE_NAME} [${env.BUILD_NUMBER}]' (${env.BUILD_URL})")
+                withCredentials([
+                    string(credentialsId: 'Claude_API', variable: 'ANTHROPIC_API_KEY')
+                ]) {
+                    aiAgent(
+                        agent: claudeCode(),
+                        model: 'claude-haiku-4-5-20251001',
+                        prompt: claudePrompt,
+                        yoloMode: true,
+                        requireApprovals: false,
+                    )
+                }
+            }
+        }
+
+        stage('Secrets Found Gate') {
+            when { expression { fileExists('secrets_found.log') } }
+            steps {
+                script {
+                    def secretsLog = readFile('secrets_found.log')
+                    echo "SECRETS FOUND:\n${secretsLog}"
+
+                    slackSend (
+                        color: '#FF0000',
+                        message: "runner: ${runner}, SECRETS FOUND by AI Code Audit: Job '${env.JOB_BASE_NAME} [${env.BUILD_NUMBER}]' (${env.BUILD_URL}) - image build paused, approval needed to continue."
+                    )
+
+                    sh '''
+                    aws sns publish \
+                      --topic-arn ${SNS_SECURITY_TOPIC_ARN} \
+                      --subject "Secrets found: ${JOB_BASE_NAME} #${BUILD_NUMBER}" \
+                      --message "Hardcoded secrets were detected during AI source audit for job ${JOB_BASE_NAME} build #${BUILD_NUMBER}. See ${BUILD_URL} and the archived secrets_found.log for file:line references. No secret values are included."
+                    '''
+
+                    def proceed = input(
+                        id: 'secretsFoundApproval',
+                        message: 'Hardcoded secrets were found in this repo and the app code gets baked into the image (see secrets_found.log / console output above). Continue the image build anyway?',
+                        parameters: [
+                            booleanParam(defaultValue: false, description: 'Continue the image build despite secrets found', name: 'PROCEED')
+                        ]
+                    )
+
+                    if (!proceed) {
+                        error "Pipeline aborted: secrets found and not approved to continue."
+                    }
+                }
+                archiveArtifacts artifacts: 'secrets_found.log', allowEmptyArchive: true
+            }
+        }
+
+        stage('Fix Approval Gate') {
+            when { expression { fileExists('syntax_issues_found.log') } }
+            steps {
+                script {
+                    def issuesLog = readFile('syntax_issues_found.log')
+                    echo "SYNTAX ISSUES FOUND:\n${issuesLog}"
+
+                    slackSend (
+                        color: '#FFFF00',
+                        message: "runner: ${runner}, Packer/shell syntax issues found by AI Code Audit: Job '${env.JOB_BASE_NAME} [${env.BUILD_NUMBER}]' (${env.BUILD_URL}) - approval needed to implement fixes and push."
+                    )
+
+                    applyFixes = input(
+                        id: 'fixApproval',
+                        message: 'Minor Packer/shell syntax issues were found (see syntax_issues_found.log / console output above). Implement the fixes and push them?',
+                        parameters: [
+                            booleanParam(defaultValue: false, description: 'Implement fixes, commit, tag, and push', name: 'APPLY_FIXES')
+                        ]
+                    )
+                }
+                archiveArtifacts artifacts: 'syntax_issues_found.log', allowEmptyArchive: true
+            }
+        }
+
+        stage('AI Fix and Push') {
+            when { expression { fileExists('syntax_issues_found.log') && applyFixes } }
+            steps {
+                slackSend (color: '#FFFF00', message: "runner: ${runner}, STARTING AI Fix and Push: Job '${env.JOB_BASE_NAME} [${env.BUILD_NUMBER}]' (${env.BUILD_URL})")
+                withCredentials([
+                    string(credentialsId: 'Claude_API', variable: 'ANTHROPIC_API_KEY'),
+                    string(credentialsId: 'GITHUB_TOKEN', variable: 'GH_TOKEN')
+                ]) {
+                    aiAgent(
+                        agent: claudeCode(),
+                        model: 'claude-haiku-4-5-20251001',
+                        prompt: claudeFixPrompt,
+                        yoloMode: true,
+                        requireApprovals: false,
+                    )
+                }
+            }
+        }
+
+        stage('Packer Init and Validate') {
+            steps {
+                slackSend (color: '#FFFF00', message: "runner: ${runner}, STARTING PACKER IMAGE BUILD: Job '${env.JOB_BASE_NAME} [${env.BUILD_NUMBER}]' (${env.BUILD_URL})")
+                dir('packer') {
+                    sh '''
+                    /usr/bin/packer init image.pkr.hcl
+                    /usr/bin/packer validate image.pkr.hcl
+                    '''
+                }
+            }
+        }
+
+        stage('Packer Build') {
+            steps {
+                dir('packer') {
+                    sh '''
+                    export PACKER_LOG=1
+                    export PACKER_LOG_PATH=$WORKSPACE/packer.log
+                    /usr/bin/packer build -force image.pkr.hcl
+                    '''
+                    script {
+                        amiId = sh(
+                            script: "grep -o 'ami-[0-9a-f]*' packer-manifest.json | tail -1",
+                            returnStdout: true
+                        ).trim()
+                    }
+                }
+                archiveArtifacts artifacts: 'packer/packer-manifest.json, packer.log', allowEmptyArchive: true
+                slackSend (
+                    color: '#36a64f',
+                    message: """
+                    --GOLDEN IMAGE BUILT--
+Runner: ${runner}
+Job: '${env.JOB_BASE_NAME} [${env.BUILD_NUMBER}]'
+
+AMI: ${amiId}
+Run the deploy pipeline to roll it out.
+"""
+                )
+            }
+        }
+    }
+
+    post {
+        failure {
+            slackSend(
+                channel: '#stackjenkins',
+                color: 'danger',
+                message: "FAILED: ${env.JOB_BASE_NAME} #${env.BUILD_NUMBER} (${env.BUILD_URL})"
+            )
+        }
+        success {
+            slackSend(
+                channel: '#stackjenkins',
+                color: 'good',
+                message: "SUCCESS: ${env.JOB_BASE_NAME} #${env.BUILD_NUMBER} (${env.BUILD_URL})"
+            )
+        }
+    }
+}
