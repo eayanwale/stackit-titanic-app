@@ -1,3 +1,4 @@
+# Existing public subnets (ALB + NAT live here). Looked up to get their AZs.
 data "aws_subnet" "public_a" {
   id = var.SUBNET_A
 }
@@ -6,6 +7,7 @@ data "aws_subnet" "public_b" {
   id = var.SUBNET_B
 }
 
+# Private subnets for the app instances and RDS, one per AZ of the public subnets
 resource "aws_subnet" "private_a" {
   vpc_id            = var.VPC_ID
   cidr_block        = var.PRIVATE_CIDR_A
@@ -26,6 +28,8 @@ resource "aws_subnet" "private_b" {
   }
 }
 
+# NAT gateway in a public subnet so private instances can reach the internet
+# (package installs, SSM, SageMaker) without being reachable from it
 resource "aws_eip" "nat" {
   domain = "vpc"
 
@@ -43,6 +47,7 @@ resource "aws_nat_gateway" "nat" {
   }
 }
 
+# Private route table: all outbound traffic goes through the NAT gateway
 resource "aws_route_table" "private" {
   vpc_id = var.VPC_ID
 

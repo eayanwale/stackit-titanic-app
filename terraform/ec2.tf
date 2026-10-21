@@ -1,3 +1,5 @@
+# Launch template: golden AMI, private IP only, IMDSv2 required.
+# user-data writes the .env (secrets from SSM, DB address from RDS) and starts the service.
 resource "aws_launch_template" "app" {
   name_prefix            = "${var.APP_NAME}-lt"
   image_id               = data.aws_ami.golden.id
@@ -35,6 +37,7 @@ resource "aws_launch_template" "app" {
   }
 }
 
+# ASG in the private subnets behind the ALB target group
 resource "aws_autoscaling_group" "app" {
   name                      = "${var.APP_NAME}-asg"
   min_size                  = 1
@@ -46,11 +49,14 @@ resource "aws_autoscaling_group" "app" {
   vpc_zone_identifier       = [aws_subnet.private_a.id, aws_subnet.private_b.id]
   target_group_arns         = [aws_lb_target_group.app.arn]
 
+  # A concrete version (not "$Latest") so a new AMI changes this value and
+  # triggers the instance_refresh below
   launch_template {
     id      = aws_launch_template.app.id
     version = aws_launch_template.app.latest_version
   }
 
+  # Roll instances one at a time, keeping full capacity, when the template changes
   instance_refresh {
     strategy = "Rolling"
     preferences {
@@ -59,6 +65,7 @@ resource "aws_autoscaling_group" "app" {
     }
   }
 
+  # Instances need the NAT route in place before they boot, or user-data can't reach SSM
   depends_on = [
     aws_route_table_association.private_a,
     aws_route_table_association.private_b,
@@ -72,6 +79,7 @@ resource "aws_autoscaling_group" "app" {
   }
 }
 
+# Scale out when average CPU goes above 70%
 resource "aws_autoscaling_policy" "cpu" {
   name                   = "${var.APP_NAME}-cpu-target"
   autoscaling_group_name = aws_autoscaling_group.app.name
