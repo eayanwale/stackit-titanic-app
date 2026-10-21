@@ -1,3 +1,6 @@
+# Security groups chain the tiers: internet -> ALB :80 -> app :8000 -> DB :5432
+
+# Tier 1: the load balancer, open to the internet on HTTP
 resource "aws_security_group" "alb" {
   name        = "${var.APP_NAME}-alb-sg"
   description = "Public HTTP to the load balancer"
@@ -23,6 +26,7 @@ resource "aws_security_group" "alb" {
   }
 }
 
+# Tier 2: app instances, only reachable from the ALB security group
 resource "aws_security_group" "app" {
   name        = "${var.APP_NAME}-app-sg"
   description = "Gunicorn port from the load balancer only"
@@ -48,6 +52,7 @@ resource "aws_security_group" "app" {
   }
 }
 
+# Tier 3: Postgres, only reachable from the app security group
 resource "aws_security_group" "db" {
   name        = "${var.APP_NAME}-db-sg"
   description = "Postgres from the app tier only"

@@ -1,3 +1,4 @@
+# Public ALB in the public subnets - the app's entry point
 resource "aws_lb" "app" {
   name               = "${var.APP_NAME}-alb"
   internal           = false
@@ -6,6 +7,7 @@ resource "aws_lb" "app" {
   subnets            = [var.SUBNET_A, var.SUBNET_B]
 }
 
+# Gunicorn listens on 8000; /healthz tells the ALB an instance is ready
 resource "aws_lb_target_group" "app" {
   name     = "${var.APP_NAME}-tg"
   port     = 8000
@@ -18,6 +20,7 @@ resource "aws_lb_target_group" "app" {
   }
 }
 
+# HTTP :80 forwards everything to the target group (HTTPS not set up yet)
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.app.arn
   port              = 80
