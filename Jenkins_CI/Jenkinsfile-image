@@ -14,6 +14,7 @@ pipeline {
 
     stages {
 
+        // Clear logs from earlier builds and load the image scan + fix prompts
         stage('Checkout and load prompt') {
             steps {
                 script {
@@ -39,6 +40,8 @@ pipeline {
             }
         }
 
+        // Scan-only pass: secrets in packer/ and titanic-survival/ (the app gets baked into
+        // the AMI) and syntax issues in packer/*.pkr.hcl and *.sh
         stage('AI Source Code Audit') {
             steps {
                 slackSend (color: '#FFFF00', message: "runner: ${runner}, STARTING AI Code Audit: Job '${env.JOB_BASE_NAME} [${env.BUILD_NUMBER}]' (${env.BUILD_URL})")
@@ -56,6 +59,7 @@ pipeline {
             }
         }
 
+        // If secrets were found: alert Slack + SNS and pause for a human to approve or abort
         stage('Secrets Found Gate') {
             when { expression { fileExists('secrets_found.log') } }
             steps {
@@ -91,6 +95,7 @@ pipeline {
             }
         }
 
+        // If syntax issues were found: ask whether the AI should fix them
         stage('Fix Approval Gate') {
             when { expression { fileExists('syntax_issues_found.log') } }
             steps {
@@ -115,6 +120,7 @@ pipeline {
             }
         }
 
+        // Approved fixes only: AI fixes the listed issues, commits to a new branch and opens a PR
         stage('AI Fix and Push') {
             when { expression { fileExists('syntax_issues_found.log') && applyFixes } }
             steps {
@@ -134,6 +140,7 @@ pipeline {
             }
         }
 
+        // Install the amazon plugin and check the template before building
         stage('Packer Init and Validate') {
             steps {
                 slackSend (color: '#FFFF00', message: "runner: ${runner}, STARTING PACKER IMAGE BUILD: Job '${env.JOB_BASE_NAME} [${env.BUILD_NUMBER}]' (${env.BUILD_URL})")
@@ -146,6 +153,8 @@ pipeline {
             }
         }
 
+        // Build the golden AMI, read its ID from packer-manifest.json and post it to Slack.
+        // Terraform picks up the newest AMI on the next deploy run.
         stage('Packer Build') {
             steps {
                 dir('packer') {
@@ -177,6 +186,7 @@ Run the deploy pipeline to roll it out.
         }
     }
 
+    // Final pass/fail notice to the team channel
     post {
         failure {
             slackSend(
