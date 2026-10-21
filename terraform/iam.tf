@@ -1,3 +1,4 @@
+# Trust policy: lets EC2 instances assume the app role
 data "aws_iam_policy_document" "assume" {
   statement {
     actions = ["sts:AssumeRole"]
@@ -9,6 +10,7 @@ data "aws_iam_policy_document" "assume" {
   }
 }
 
+# Invoke only the one SageMaker endpoint the app uses
 data "aws_iam_policy_document" "invoke" {
   statement {
     actions   = ["sagemaker:InvokeEndpoint"]
@@ -16,6 +18,7 @@ data "aws_iam_policy_document" "invoke" {
   }
 }
 
+# Read the app's secrets from SSM Parameter Store at boot (under SSM_PREFIX only)
 data "aws_iam_policy_document" "ssm" {
   statement {
     actions   = ["ssm:GetParameter"]
@@ -28,6 +31,7 @@ resource "aws_iam_role" "app" {
   assume_role_policy = data.aws_iam_policy_document.assume.json
 }
 
+# Only created once an endpoint name is set; until then the app runs in mock mode
 resource "aws_iam_role_policy" "invoke" {
   count  = var.SAGEMAKER_ENDPOINT_NAME == "" ? 0 : 1
   name   = "InvokeTitanicEndpoint"
@@ -41,11 +45,13 @@ resource "aws_iam_role_policy" "ssm" {
   policy = data.aws_iam_policy_document.ssm.json
 }
 
+# Session Manager access, so instances can be reached without SSH or a key pair
 resource "aws_iam_role_policy_attachment" "ssm" {
   role       = aws_iam_role.app.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
+# Instance profile that attaches the role to the EC2 instances
 resource "aws_iam_instance_profile" "app" {
   name = "${var.APP_NAME}-profile"
   role = aws_iam_role.app.name

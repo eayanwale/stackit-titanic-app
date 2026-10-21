@@ -1,14 +1,18 @@
 #!/bin/bash
 set -euo pipefail
 
+# Send all output to a log file for troubleshooting
 touch /var/log/user-data.log
 exec > /var/log/user-data.log 2>&1
 
+# Pull the secrets from SSM Parameter Store (allowed by the instance role)
 SECRET_KEY=$(aws ssm get-parameter --region "${aws_region}" --name "${ssm_prefix}/SECRET_KEY" --with-decryption --query Parameter.Value --output text)
 APP_PASSWORD=$(aws ssm get-parameter --region "${aws_region}" --name "${ssm_prefix}/APP_PASSWORD" --with-decryption --query Parameter.Value --output text)
 DB_PASSWORD=$(aws ssm get-parameter --region "${aws_region}" --name "${ssm_prefix}/DB_PASSWORD" --with-decryption --query Parameter.Value --output text)
+# URL-encode the password so special characters don't break DATABASE_URL
 DB_PASSWORD_ENCODED=$(python3.11 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=""))' "$DB_PASSWORD")
 
+# Write the .env the systemd unit reads (baked into the AMI by packer/setup.sh)
 cat > /opt/titanic-survival/.env <<EOF
 SECRET_KEY=$SECRET_KEY
 APP_USERNAME=${app_username}
@@ -19,4 +23,5 @@ DATABASE_URL=postgresql+psycopg://${db_user}:$DB_PASSWORD_ENCODED@${db_host}:543
 EOF
 chmod 600 /opt/titanic-survival/.env
 
+# Start gunicorn now and on every reboot
 systemctl enable --now titanic

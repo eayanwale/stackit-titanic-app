@@ -1,3 +1,4 @@
+# RDS goes in the private subnets
 resource "aws_db_subnet_group" "db" {
   name       = "${var.APP_NAME}-subnet-group"
   subnet_ids = [aws_subnet.private_a.id, aws_subnet.private_b.id]
@@ -7,6 +8,7 @@ resource "aws_db_subnet_group" "db" {
   }
 }
 
+# Postgres user store for sign-in (tier 3). Single AZ, no final snapshot - dev setup.
 resource "aws_db_instance" "db" {
   identifier             = "${var.APP_NAME}-db"
   engine                 = "postgres"

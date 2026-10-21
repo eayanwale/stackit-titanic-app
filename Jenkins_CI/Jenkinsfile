@@ -19,6 +19,7 @@ pipeline {
 
     stages {
 
+        // Turn the ACTION parameter into a label for the Slack messages
         stage('Determine action') {
             steps {
                 script {
@@ -35,6 +36,7 @@ pipeline {
             }
         }
 
+        // Clear logs from earlier builds and load the scan + fix prompts for the AI audit
         stage('Checkout and load prompt') {
             steps {
                 script {
@@ -60,6 +62,8 @@ pipeline {
             }
         }
 
+        // Scan-only pass over terraform/ for hardcoded secrets and *.tf syntax issues.
+        // Writes secrets_found.log / syntax_issues_found.log for the gates below. Apply runs only.
         stage('AI Source Code Audit') {
             when { expression { params.ACTION == 'apply' } }
             steps {
@@ -78,6 +82,7 @@ pipeline {
             }
         }
 
+        // If secrets were found: alert Slack + SNS and pause for a human to approve or abort
         stage('Secrets Found Gate') {
             when { expression { fileExists('secrets_found.log') } }
             steps {
@@ -113,6 +118,7 @@ pipeline {
             }
         }
 
+        // If syntax issues were found: ask whether the AI should fix them
         stage('Fix Approval Gate') {
             when { expression { fileExists('syntax_issues_found.log') } }
             steps {
@@ -137,6 +143,7 @@ pipeline {
             }
         }
 
+        // Approved fixes only: AI fixes the listed issues, commits to a new branch and opens a PR
         stage('AI Fix and Push') {
             when { expression { fileExists('syntax_issues_found.log') && applyFixes } }
             steps {
@@ -156,6 +163,7 @@ pipeline {
             }
         }
 
+        // Download providers and connect to the S3 state backend
         stage('Terraform Init') {
             steps {
                 slackSend (
@@ -175,6 +183,7 @@ Build: (${env.BUILD_URL})
             }
         }
 
+        // Always plan (a destroy plan when ACTION=destroy) and save it to tfplan
         stage('Terraform Plan') {
             steps {
                 dir('terraform') {
@@ -185,6 +194,7 @@ Build: (${env.BUILD_URL})
             }
         }
 
+        // Apply the saved plan, then post the app URL (ALB DNS name) to Slack
         stage('Terraform Apply') {
             when { expression { params.ACTION == 'apply' } }
             steps {
@@ -211,6 +221,7 @@ Titanic Survival URL:
             }
         }
 
+        // Tear the whole stack down (NAT, ALB, RDS and instances all bill hourly)
         stage('Terraform Destroy') {
             when { expression { params.ACTION == 'destroy' } }
             steps {
@@ -231,6 +242,7 @@ Job: '${env.JOB_BASE_NAME} [${env.BUILD_NUMBER}]'
         }
     }
 
+    // Final pass/fail notice to the team channel
     post {
         failure {
             slackSend(
